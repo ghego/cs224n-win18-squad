@@ -2,7 +2,7 @@
 
 # Get directory containing this script
 HEAD_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-CODE_DIR=$HEAD_DIR/code
+CODE_DIR=$HEAD_DIR/src
 DATA_DIR=$HEAD_DIR/data
 EXP_DIR=$HEAD_DIR/experiments
 
@@ -10,9 +10,11 @@ mkdir -p $EXP_DIR
 
 # Creates the environment
 conda create -n squad python=3.6
+# virtualenv squad
 
 # Activates the environment
 source activate squad
+# source squad/bin/activate
 
 # pip install into environment
 pip install -r requirements.txt
