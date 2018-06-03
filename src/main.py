@@ -16,12 +16,14 @@
 
 from __future__ import absolute_import
 from __future__ import division
+from __future__ import print_function
 
 import os
 import io
 import json
 import sys
 import logging
+import argparse
 
 import tensorflow as tf
 
@@ -32,44 +34,10 @@ from official_eval_helper import get_json_data, generate_answers
 
 logging.basicConfig(level=logging.INFO)
 
-MAIN_DIR = os.path.relpath(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # relative path of the main directory
-DEFAULT_DATA_DIR = os.path.join(MAIN_DIR, "data") # relative path of data dir
-EXPERIMENTS_DIR = os.path.join(MAIN_DIR, "experiments") # relative path of experiments dir
-
-
-# High-level options
-tf.app.flags.DEFINE_integer("gpu", 0, "Which GPU to use, if you have multiple.")
-tf.app.flags.DEFINE_string("mode", "train", "Available modes: train / show_examples / official_eval")
-tf.app.flags.DEFINE_string("experiment_name", "", "Unique name for your experiment. This will create a directory by this name in the experiments/ directory, which will hold all data related to this experiment")
-tf.app.flags.DEFINE_integer("num_epochs", 0, "Number of epochs to train. 0 means train indefinitely")
-
-# Hyperparameters
-tf.app.flags.DEFINE_float("learning_rate", 0.001, "Learning rate.")
-tf.app.flags.DEFINE_float("max_gradient_norm", 5.0, "Clip gradients to this norm.")
-tf.app.flags.DEFINE_float("dropout", 0.15, "Fraction of units randomly dropped on non-recurrent connections.")
-tf.app.flags.DEFINE_integer("batch_size", 100, "Batch size to use")
-tf.app.flags.DEFINE_integer("hidden_size", 200, "Size of the hidden states")
-tf.app.flags.DEFINE_integer("context_len", 600, "The maximum context length of your model")
-tf.app.flags.DEFINE_integer("question_len", 30, "The maximum question length of your model")
-tf.app.flags.DEFINE_integer("embedding_size", 100, "Size of the pretrained word vectors. This needs to be one of the available GloVe dimensions: 50/100/200/300")
-
-# How often to print, save, eval
-tf.app.flags.DEFINE_integer("print_every", 1, "How many iterations to do per print.")
-tf.app.flags.DEFINE_integer("save_every", 500, "How many iterations to do per save.")
-tf.app.flags.DEFINE_integer("eval_every", 500, "How many iterations to do per calculating loss/f1/em on dev set. Warning: this is fairly time-consuming so don't do it too often.")
-tf.app.flags.DEFINE_integer("keep", 1, "How many checkpoints to keep. 0 indicates keep all (you shouldn't need to do keep all though - it's very storage intensive).")
-
-# Reading and saving data
-tf.app.flags.DEFINE_string("train_dir", "", "Training directory to save the model parameters and other info. Defaults to experiments/{experiment_name}")
-tf.app.flags.DEFINE_string("glove_path", "", "Path to glove .txt file. Defaults to data/glove.6B.{embedding_size}d.txt")
-tf.app.flags.DEFINE_string("data_dir", DEFAULT_DATA_DIR, "Where to find preprocessed SQuAD data for training. Defaults to data/")
-tf.app.flags.DEFINE_string("ckpt_load_dir", "", "For official_eval mode, which directory to load the checkpoint fron. You need to specify this for official_eval mode.")
-tf.app.flags.DEFINE_string("json_in_path", "", "For official_eval mode, path to JSON input file. You need to specify this for official_eval_mode.")
-tf.app.flags.DEFINE_string("json_out_path", "predictions.json", "Output path for official_eval mode. Defaults to predictions.json")
-
-
-FLAGS = tf.app.flags.FLAGS
-os.environ["CUDA_VISIBLE_DEVICES"] = str(FLAGS.gpu)
+MAIN_DIR = os.path.relpath(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # relative path of the main directory
+DEFAULT_DATA_DIR = os.path.join(MAIN_DIR, "data")  # relative path of data dir
+EXPERIMENTS_DIR = os.path.join(MAIN_DIR, "experiments")  # relative path of experiments dir
 
 
 def initialize_model(session, model, train_dir, expect_exists):
@@ -83,19 +51,19 @@ def initialize_model(session, model, train_dir, expect_exists):
       expect_exists: If True, throw an error if no checkpoint is found.
         If False, initialize fresh model if no checkpoint is found.
     """
-    print "Looking for model at %s..." % train_dir
+    print("Looking for model at %s..." % train_dir)
     ckpt = tf.train.get_checkpoint_state(train_dir)
     v2_path = ckpt.model_checkpoint_path + ".index" if ckpt else ""
     if ckpt and (tf.gfile.Exists(ckpt.model_checkpoint_path) or tf.gfile.Exists(v2_path)):
-        print "Reading model parameters from %s" % ckpt.model_checkpoint_path
+        print("Reading model parameters from %s" % ckpt.model_checkpoint_path)
         model.saver.restore(session, ckpt.model_checkpoint_path)
     else:
         if expect_exists:
             raise Exception("There is no saved checkpoint at %s" % train_dir)
         else:
-            print "There is no saved checkpoint at %s. Creating model with fresh parameters." % train_dir
+            print("There is no saved checkpoint at %s. Creating model with fresh parameters." % train_dir)
             session.run(tf.global_variables_initializer())
-            print 'Num params: %d' % sum(v.get_shape().num_elements() for v in tf.trainable_variables())
+            print('Num params: %d' % sum(v.get_shape().num_elements() for v in tf.trainable_variables()))
 
 
 def main(unused_argv):
@@ -103,12 +71,12 @@ def main(unused_argv):
     if len(unused_argv) != 1:
         raise Exception("There is a problem with how you entered flags: %s" % unused_argv)
 
-    # Check for Python 2
-    if sys.version_info[0] != 2:
+    # Check for Python 3
+    if sys.version_info[0] != 3:
         raise Exception("ERROR: You must use Python 2 but you are running Python %i" % sys.version_info[0])
 
     # Print out Tensorflow version
-    print "This code was developed and tested on TensorFlow 1.4.1. Your TensorFlow version: %s" % tf.__version__
+    print("This code was developed and tested on TensorFlow 1.8.0. Your TensorFlow version: %s" % tf.__version__)
 
     # Define train_dir
     if not FLAGS.experiment_name and not FLAGS.train_dir and FLAGS.mode != "official_eval":
@@ -150,7 +118,7 @@ def main(unused_argv):
 
         # Save a record of flags as a .json file in train_dir
         with open(os.path.join(FLAGS.train_dir, "flags.json"), 'w') as fout:
-            json.dump(FLAGS.__flags, fout)
+            json.dump(FLAGS.__dict__, fout)
 
         # Make bestmodel dir if necessary
         if not os.path.exists(bestmodel_dir):
@@ -194,14 +162,138 @@ def main(unused_argv):
             answers_dict = generate_answers(sess, qa_model, word2id, qn_uuid_data, context_token_data, qn_token_data)
 
             # Write the uuid->answer mapping a to json file in root dir
-            print "Writing predictions to %s..." % FLAGS.json_out_path
+            print("Writing predictions to %s..." % FLAGS.json_out_path)
             with io.open(FLAGS.json_out_path, 'w', encoding='utf-8') as f:
-                f.write(unicode(json.dumps(answers_dict, ensure_ascii=False)))
-                print "Wrote predictions to %s" % FLAGS.json_out_path
+                f.write(json.dumps(answers_dict, ensure_ascii=False))
+                print("Wrote predictions to %s" % FLAGS.json_out_path)
 
 
     else:
         raise Exception("Unexpected value of FLAGS.mode: %s" % FLAGS.mode)
 
 if __name__ == "__main__":
-    tf.app.run()
+    parser = argparse.ArgumentParser()
+
+    # High-level options
+    parser.add_argument(
+        "--gpu",
+        type=int,
+        default=0,
+        help="Which GPU to use, if you have multiple.")
+    parser.add_argument(
+        "--mode",
+        type=str,
+        default="train",
+        help="Available modes: train / show_examples / official_eval")
+    parser.add_argument(
+        "--experiment_name",
+        type=str,
+        default="",
+        help="Unique name for your experiment. This will create a directory by this name in the experiments/ directory, which will hold all data related to this experiment")
+    parser.add_argument(
+        "--num_epochs",
+        type=int,
+        default=0,
+        help="Number of epochs to train. 0 means train indefinitely")
+
+    # Hyperparameters
+    parser.add_argument(
+        "--learning_rate",
+        type=float,
+        default=0.001,
+        help="Learning rate.")
+    parser.add_argument(
+        "--max_gradient_norm",
+        type=float,
+        default=5.0,
+        help="Clip gradients to this norm.")
+    parser.add_argument(
+        "--dropout",
+        type=float,
+        default=0.15,
+        help="Fraction of units randomly dropped on non-recurrent connections.")
+    parser.add_argument(
+        "--batch_size",
+        type=int,
+        default=100,
+        help="Batch size to use")
+    parser.add_argument(
+        "--hidden_size",
+        type=int,
+        default=200,
+        help="Size of the hidden states")
+    parser.add_argument(
+        "--context_len",
+        type=int,
+        default=600,
+        help="The maximum context length of your model")
+    parser.add_argument(
+        "--question_len",
+        type=int,
+        default=30,
+        help="The maximum question length of your model")
+    parser.add_argument(
+        "--embedding_size",
+        type=int,
+        default=100,
+        help="Size of the pretrained word vectors. This needs to be one of the available GloVe dimensions: 50/100/200/300")
+
+    # How often to print, save, eval
+    parser.add_argument(
+        "--print_every",
+        type=int,
+        default=1,
+        help="How many iterations to do per print.")
+    parser.add_argument(
+        "--save_every",
+        type=int,
+        default=500,
+        help="How many iterations to do per save.")
+    parser.add_argument(
+        "--eval_every",
+        type=int,
+        default=500,
+        help="How many iterations to do per calculating loss/f1/em on dev set. Warning: this is fairly time-consuming so don't do it too often.")
+    parser.add_argument(
+        "--keep",
+        type=int,
+        default=1,
+        help="How many checkpoints to keep. 0 indicates keep all (you shouldn't need to do keep all though - it's very storage intensive).")
+
+    # Reading and saving data
+    parser.add_argument(
+        "--train_dir",
+        type=str,
+        default="",
+        help="Training directory to save the model parameters and other info. Defaults to experiments/{experiment_name}")
+    parser.add_argument(
+        "--glove_path",
+        type=str,
+        default="",
+        help="Path to glove .txt file. Defaults to data/glove.6B.{embedding_size}d.txt")
+    parser.add_argument(
+        "--data_dir",
+        type=str,
+        default=DEFAULT_DATA_DIR,
+        help="Where to find preprocessed SQuAD data for training. Defaults to data/")
+    parser.add_argument(
+        "--ckpt_load_dir",
+        type=str,
+        default="",
+        help="For official_eval mode, which directory to load the checkpoint fron. You need to specify this for official_eval mode.")
+    parser.add_argument(
+        "--json_in_path",
+        type=str,
+        default="",
+        help="For official_eval mode, path to JSON input file. You need to specify this for official_eval_mode.")
+    parser.add_argument(
+        "--json_out_path",
+        type=str,
+        default="predictions.json",
+        help="Output path for official_eval mode. Defaults to predictions.json")
+
+    FLAGS, unparsed = parser.parse_known_args()
+
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(FLAGS.gpu)
+
+    tf.app.run(main=main, argv=[sys.argv[0]] + unparsed)
