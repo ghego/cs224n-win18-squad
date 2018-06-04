@@ -164,7 +164,7 @@ def preprocess_dataset(dataset):
         article_paragraphs = dataset['data'][articles_id]['paragraphs']
         for pid in range(len(article_paragraphs)):
 
-            context = unicode(article_paragraphs[pid]['context']) # string
+            context = article_paragraphs[pid]['context'] # string
 
             # The following replacements are suggested in the paper
             # BidAF (Seo et al., 2016)
@@ -180,7 +180,7 @@ def preprocess_dataset(dataset):
             for qn in qas:
 
                 # read the question text and tokenize
-                question = unicode(qn['question']) # string
+                question = qn['question'] # string
                 question_tokens = tokenize(question) # list of strings
 
                 # also get the question_uuid
