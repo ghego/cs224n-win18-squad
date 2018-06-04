@@ -1,6 +1,7 @@
 data
 experiments
 .idea
+squad
 
 *.DS_Store
 
